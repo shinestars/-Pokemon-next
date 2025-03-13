@@ -1,103 +1,166 @@
-import Image from "next/image";
+"use client";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Types from "./components/types";
+import Pokemon from "./components/pokemon";
+import Pagination from "./components/pagination";
+import {
+  getTypes,
+  getList,
+  getTypeList,
+  getMultipleTypeList,
+} from "./services/getData";
+import { PokemonType, types, TypesOfPokemon } from "./types/common";
+interface Result {
+  previous: null | string;
+  next: null | string;
+  count: number;
+}
 
-export default function Home() {
+const Home = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [types, setTypes] = useState<types[]>([]);
+  const [selectTypes, setSelectedTypes] = useState<string[]>([]);
+  const [list, setList] = useState<PokemonType[]>([]);
+  const [result, setResult] = useState<Result>({
+    previous: null,
+    next: null,
+    count: 0,
+  });
+
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    getTypes().then((res) => {
+      setTypes(res);
+    });
+  }, []);
+
+  const getResult = useCallback((type: string[], page: number) => {
+    setLoading(true);
+    const len = type.length;
+    if (len === 0) {
+      const url = `https://pokeapi.co/api/v2/pokemon?offset=${
+        (page - 1) * 24
+      }&limit=24`;
+      getList(url).then((res) => {
+        const { results, ...rest } = res;
+        setList(results);
+        setResult({ ...rest });
+        setLoading(false);
+      });
+    } else if (len === 1) {
+      getTypeList(`https://pokeapi.co/api/v2/type/${type[0]}`).then(
+        (result) => {
+          const res = result.map((i: TypesOfPokemon) => i.pokemon);
+          updateResultAndList(res, page);
+          setLoading(false);
+        }
+      );
+    } else {
+      getMultipleTypeList(type).then((result) => {
+        setLoading(false);
+        let res: PokemonType[] = [];
+        for (let i = 0; i < result.length; i++) {
+          const pokemons = result[i].data.pokemon.map(
+            (i: TypesOfPokemon) => i.pokemon
+          );
+          res = res.concat(pokemons);
+        }
+        const map = new Map();
+        for (const p of res) {
+          map.set(p.url, (map.get(p.url) ?? 0) + 1);
+        }
+        const list: PokemonType[] = [];
+        map.forEach((v, k) => {
+          if (v >= 2) {
+            list.push(res.find((i) => i.url === k)!);
+          }
+        });
+        updateResultAndList(list, page);
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const selectTypes = (searchParams.get("type") ?? "")
+      .split(",")
+      .filter((t) => !!t);
+    const page = Number(searchParams.get("page") ?? 1);
+    setSelectedTypes(selectTypes);
+    getResult(selectTypes, page);
+  }, [searchParams, getResult]);
+
+  const updateResultAndList = (list: PokemonType[], page: number) => {
+    const count = list.length;
+    const start = (page - 1) * 24;
+    const end = page * 24;
+    if (start > count) {
+      return;
+    }
+    setList(list.slice(start, end));
+    setResult({
+      previous: start > 0 ? "0" : null,
+      next: count > end ? "0" : null,
+      count,
+    });
+  };
+
+  const updateTypes = (t: types) => {
+    let copieTypes = [...selectTypes];
+    if (copieTypes.find((tp) => tp === t.name)) {
+      copieTypes = copieTypes.filter((tp) => tp !== t.name);
+    } else {
+      copieTypes.push(t.name);
+    }
+    updateSearchParams(copieTypes, 1);
+  };
+
+  const updatePage = (step: number) => {
+    updateSearchParams(
+      selectTypes,
+      Number(searchParams.get("page") ?? 1) + step
+    );
+  };
+
+  const updateSearchParams = (type: string[], page: number) => {
+    const searchParams = new URLSearchParams();
+    searchParams.append("page", page.toString());
+    if (type.length > 0) {
+      searchParams.append("type", Array.from(type).join(","));
+    }
+    router.push(`?${searchParams.toString()}`);
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="flex flex-col gap-4 px-10">
+      <h1>欢迎来到宝可梦世界</h1>
+      Total count: {result?.count}
+      <Types
+        types={types}
+        updateTypes={updateTypes}
+        selectTypes={selectTypes}
+      />
+      {loading ? (
+        <div>Loading</div>
+      ) : (
+        <div className="flex flex-col justify-center">
+          <section className="grid grid-cols-6 gap-16">
+            {list.map((i) => (
+              <Pokemon key={i.name} {...i} />
+            ))}
+          </section>
+          <Pagination
+            updatePage={updatePage}
+            previous={result.previous}
+            next={result.next}
+          />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      )}
     </div>
   );
-}
+};
+
+export default Home;
