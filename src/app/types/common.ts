@@ -4,7 +4,7 @@ export interface Result {
   count: number;
 }
 
-export interface types {
+export interface Type {
   name: string;
   url: string;
 }

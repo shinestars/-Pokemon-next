@@ -1,10 +1,9 @@
-import axios from "axios";
-import { types, TypesOfPokemon } from "../components/types";
-// 获取宝可梦类型数据的函数
-export async function getTypes(): Promise<types[]> {
+import { Type, TypesOfPokemon } from "../types/common";
+export async function getTypes(): Promise<Type[]> {
   try {
-    const response = await axios.get("https://pokeapi.co/api/v2/type");
-    return response.data.results;
+    const response = await fetch("https://pokeapi.co/api/v2/type");
+    const data = await response.json();
+    return data.results;
   } catch (error) {
     console.error("Error fetching types:", error);
     return [];
@@ -13,8 +12,9 @@ export async function getTypes(): Promise<types[]> {
 
 export async function getList(url: string) {
   try {
-    const response = await axios.get(url);
-    return response.data;
+    const response = await fetch(url);
+    const data = await response.json();
+    return data;
   } catch (error) {
     console.error("Error fetching types:", error);
     return [];
@@ -23,8 +23,9 @@ export async function getList(url: string) {
 
 export async function getTypeList(url: string): Promise<TypesOfPokemon[]> {
   try {
-    const response = await axios.get(url);
-    return response.data.pokemon;
+    const response = await fetch(url);
+    const data = await response.json();
+    return data.pokemon;
   } catch (error) {
     console.error("Error fetching types:", error);
     return [];
@@ -34,7 +35,7 @@ export async function getTypeList(url: string): Promise<TypesOfPokemon[]> {
 export async function getMultipleTypeList(urls: string[]) {
   const paths = [];
   for (const url of urls) {
-    paths.push(axios.get(`https://pokeapi.co/api/v2/type/${url}`));
+    paths.push(fetch(`https://pokeapi.co/api/v2/type/${url}`));
   }
   return await Promise.all(paths);
 }

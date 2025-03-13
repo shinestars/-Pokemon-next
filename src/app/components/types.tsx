@@ -1,8 +1,8 @@
 "use client";
-import { types } from "../types/common";
+import { Type } from "../types/common";
 interface TypesProps {
-  types: types[];
-  updateTypes: (t: types) => void;
+  types: Type[];
+  updateTypes: (t: Type) => void;
   selectTypes: string[];
 }
 export default function Types({ types, updateTypes, selectTypes }: TypesProps) {
